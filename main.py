@@ -91,7 +91,7 @@ keys = [
 #     }
 # }
 
-yt = YouTube(url_4k, proxies=proxies, on_progress_callback=on_progress)
+yt = YouTube(url_4k, on_progress_callback=on_progress)
 # yt = YouTube(url_8k, proxies=proxies, on_progress_callback=on_progress,
 #             use_po_token=True)
 
@@ -107,65 +107,38 @@ time.sleep(1)
 # for key in yt.streams[0].__dict__.keys():print(key)
 # time.sleep(1)
 
-VDO_8K = VDO_4K = VDO_1440P = VDO_1080P = VDO_720P = VDO_480P = VDO_320P = False
-RESOLUTIONS = [{"id": 0, "label": "8K", "resv": "4320p", "size": "0", "exist": "❌"},
-               {"id": 1, "label": "4K", "resv": "2160p", "size": "0", "exist": "❌"},
-               {"id": 2, "label": "2.5K", "resv": "1440p", "size": "0", "exist": "❌"},
-               {"id": 3, "label": "2K", "resv": "1080p", "size": "0", "exist": "❌"},
-               {"id": 4, "label": "1K", "resv": "720p", "size": "0", "exist": "❌"},
-               {"id": 5, "label": "DV", "resv": "480p", "size": "0", "exist": "❌"},
-               {"id": 6, "label": "CD", "resv": "320p", "size": "0", "exist": "❌"}]
+RESOLUTIONS = [{"id": 0, "label": "8K", "resv": "4320p", "size": "0", "exist": "❌", "codecs": [], "raw_codecs": [], "codec_sizes": {}},
+               {"id": 1, "label": "4K", "resv": "2160p", "size": "0", "exist": "❌", "codecs": [], "raw_codecs": [], "codec_sizes": {}},
+               {"id": 2, "label": "2.5K", "resv": "1440p", "size": "0", "exist": "❌", "codecs": [], "raw_codecs": [], "codec_sizes": {}},
+               {"id": 3, "label": "2K", "resv": "1080p", "size": "0", "exist": "❌", "codecs": [], "raw_codecs": [], "codec_sizes": {}},
+               {"id": 4, "label": "1K", "resv": "720p", "size": "0", "exist": "❌", "codecs": [], "raw_codecs": [], "codec_sizes": {}},
+               {"id": 5, "label": "DV", "resv": "480p", "size": "0", "exist": "❌", "codecs": [], "raw_codecs": [], "codec_sizes": {}},
+               {"id": 6, "label": "CD", "resv": "320p", "size": "0", "exist": "❌", "codecs": [], "raw_codecs": [], "codec_sizes": {}}]
 
-# for k in ['4320p', '2160p', '1440p', '1080p', '720p']:
+CODEC_NAMES = {"av01": "AV1", "avc1": "H.264", "vp9": "VP9", "vp09": "VP9", "hvc1": "H.265"}
+
+def short_codec(raw):
+    """Map raw codec string like 'av01.0.12M.08' to a readable name like 'AV1'."""
+    for prefix, name in CODEC_NAMES.items():
+        if raw.startswith(prefix):
+            return name
+    return raw
+
 for i, k in enumerate(RESOLUTIONS):
-    hd = yt.streams.filter(res=k["resv"]).first()
-    if hd is None:
-        # Warning(f'{k} ❌')
-        if k["resv"] == RESOLUTIONS[0]["resv"]:
-            VDO_8K = False
-            RESOLUTIONS[0]["exist"] = "❌"
-        elif k["resv"] == RESOLUTIONS[1]["resv"]:
-            VDO_4K = False
-            RESOLUTIONS[1]["exist"] = "❌"
-        elif k["resv"] == RESOLUTIONS[2]["resv"]:
-            VDO_1440P = False
-            RESOLUTIONS[2]["exist"] = "❌"
-        elif k["resv"] == RESOLUTIONS[3]["resv"]:
-            VDO_1080P = False
-            RESOLUTIONS[3]["exist"] = "❌"
-        elif k["resv"] == RESOLUTIONS[4]["resv"]:
-            VDO_720P = False
-            RESOLUTIONS[4]["exist"] = "❌"
-        elif k["resv"] == RESOLUTIONS[5]["resv"]:
-            VDO_480P = False
-            RESOLUTIONS[5]["exist"] = "❌"
-        elif k["resv"] == RESOLUTIONS[6]["resv"]:
-            VDO_320P = False
-            RESOLUTIONS[6]["exist"] = "❌"
-    else:
-        # Info(f'{k} ✅ {str(getattr(hd, "_filesize_mb")): >10} MB')
-        RESOLUTIONS[i]["size"] = str(getattr(hd, "_filesize_mb"))
-        if k["resv"] == RESOLUTIONS[0]["resv"]:
-            VDO_8K = True
-            RESOLUTIONS[0]["exist"] = "✅"
-        elif k["resv"] == RESOLUTIONS[1]["resv"]:
-            VDO_4K = True
-            RESOLUTIONS[1]["exist"] = "✅"
-        elif k["resv"] == RESOLUTIONS[2]["resv"]:
-            VDO_1440P = True
-            RESOLUTIONS[2]["exist"] = "✅"
-        elif k["resv"] == RESOLUTIONS[3]["resv"]:
-            VDO_1080P = True
-            RESOLUTIONS[3]["exist"] = "✅"
-        elif k["resv"] == RESOLUTIONS[4]["resv"]:
-            VDO_720P = True
-            RESOLUTIONS[4]["exist"] = "✅"
-        elif k["resv"] == RESOLUTIONS[5]["resv"]:
-            VDO_480P = True
-            RESOLUTIONS[5]["exist"] = "✅"
-        elif k["resv"] == RESOLUTIONS[6]["resv"]:
-            VDO_320P = True
-            RESOLUTIONS[6]["exist"] = "✅"
+    streams = yt.streams.filter(res=k["resv"], only_video=True)
+    if not streams:
+        continue
+    ordered = streams.order_by("bitrate").desc()
+    raw_codecs = list(dict.fromkeys(s.video_codec for s in ordered if s.video_codec))
+    codec_sizes = {}
+    for s in ordered:
+        if s.video_codec and s.video_codec not in codec_sizes:
+            codec_sizes[s.video_codec] = str(getattr(s, "_filesize_mb"))
+    RESOLUTIONS[i]["size"] = list(codec_sizes.values())[0]
+    RESOLUTIONS[i]["exist"] = "✅"
+    RESOLUTIONS[i]["codecs"] = [short_codec(c) for c in raw_codecs]
+    RESOLUTIONS[i]["raw_codecs"] = raw_codecs
+    RESOLUTIONS[i]["codec_sizes"] = codec_sizes
 
 table = Table(show_header=True, header_style="bold magenta")
 # table.add_column(["8K", "4K", "2.5K", "2K"])
@@ -180,7 +153,7 @@ for col in list(map(lambda x: f'{x["label"]}/{x["resv"]}', RESOLUTIONS)):
 
 # table.add_row(*list(map(lambda x: x["resv"], RESOLUTIONS)))
 table.add_row(
-    *list(map(lambda x: "❌" if x["size"] == "0" else f'✅ {x["size"]} MB', RESOLUTIONS)))
+    *list(map(lambda x: "❌" if x["size"] == "0" else f'✅ {x["size"]} MB [{", ".join(x["codecs"])}]', RESOLUTIONS)))
 console.print(table)
 time.sleep(1)
 
@@ -192,8 +165,11 @@ PrintWarning("Select a item to download(default is first item):")
 #     [f'\t{str(i+1)}. {x["label"]}/{x["resv"]}  {x["size"]} MB' for i, x in enumerate(list2)]))
 
 for i, x in enumerate(list2):
+    codec_parts = ", ".join(
+        f"{short_codec(c)}/{x['codec_sizes'][c]}MB" for c in x['raw_codecs'])
+    codecs_str = f" [{codec_parts}]" if x['raw_codecs'] else ""
     console.print(
-        f"\t[blue]{str(i+1)}.  [green]{str(x["label"]).rjust(4)}/{str(x["resv"]).ljust(6)}  {x["size"]} MB")
+        f"\t[blue]{str(i+1)}.  [green]{str(x['label']).rjust(4)}/{str(x['resv']).ljust(6)}  {codecs_str}")
 
 index = input('Your chose: ')
 if (index is None):
@@ -205,32 +181,57 @@ elif index not in [str(i + 1) for i, x in enumerate(list2)]:
         "You entered the wrong option, the first item will be downloaded!")
 
 select_item = list2[int(index) - 1]
+
+available_codecs = select_item["codecs"]
+raw_codecs = select_item["raw_codecs"]
+codec_sizes = select_item["codec_sizes"]
+chosen_raw = raw_codecs[0] if raw_codecs else None
+if len(available_codecs) > 1:
+    PrintWarning("Select codec:")
+    for ci, c in enumerate(available_codecs):
+        raw = raw_codecs[ci]
+        console.print(f"\t[blue]{str(ci+1)}.  [green]{c}[/green] ({codec_sizes.get(raw, '?')} MB)")
+    codec_index = input('Codec choice: ')
+    if codec_index in [str(n + 1) for n in range(len(available_codecs))]:
+        chosen_raw = raw_codecs[int(codec_index) - 1]
+
+chosen_size = codec_sizes.get(chosen_raw, select_item["size"])
+
 PrintRule(
-    f'✅ {index}. {select_item["label"]}/{select_item["resv"]}  {select_item["size"]} MB will be downloaded ... ✅')
+    f'✅ {index}. {select_item["label"]}/{select_item["resv"]} {short_codec(chosen_raw)} {chosen_size} MB will be downloaded ... ✅')
 
-# table = Table(show_header=True, header_style="bold magenta")
-# for key in keys:
-#     table.add_column(key)
+captions_list = list(yt.captions)
+selected_caption = None
+if captions_list:
+    download_subs = input('Download subtitles? (y/N): ').strip().lower()
+    if download_subs in ('y', 'yes'):
+        print('')
+        PrintWarning('Available subtitles:')
+        for ci, c in enumerate(captions_list):
+            console.print(f"\t[blue]{str(ci+1)}.  [green]{c.name}")
+        sub_index = input('Subtitle choice: ')
+        if sub_index and sub_index in [str(n + 1) for n in range(len(captions_list))]:
+            selected_caption = captions_list[int(sub_index) - 1]
 
-# for idx, stream in enumerate(yt.streams.order_by('resolution').desc()):
-#     row = tuple(map(lambda x: str(getattr(stream, x)), keys))
-# table.add_row(*row)
-
-# console.print(table)
 time.sleep(1)
 
+default_output = os.path.join(os.path.expanduser('~'), 'Downloads')
+output_dir = input(f'Output directory (default: {default_output}): ').strip()
+if not output_dir:
+    output_dir = default_output
+output_dir = os.path.expanduser(output_dir)
+os.makedirs(output_dir, exist_ok=True)
+
 timestamp = datetime.datetime.now().timestamp()
-current_dir = os.getcwd()
-output_dir = os.path.join(current_dir, 'output')
 temp_audio = f'temp_{timestamp}.mp3'
 temp_video = f'temp_{timestamp}.mp4'
-merge_file = f'_merge_{timestamp}.mp4'
+merge_file = f'_merge_{timestamp}.mkv'
 
 opener = "open" if sys.platform == "darwin" else "xdg-open" if sys.platform == 'linux' else 'start'
 # subprocess.call([opener, output_dir])
 
-if os.path.exists(os.path.join(output_dir, f'{yt.title}.mp4')):
-    os.remove(os.path.join(output_dir, f'{yt.title}.mp4'))
+if os.path.exists(os.path.join(output_dir, f'{yt.title}.mkv')):
+    os.remove(os.path.join(output_dir, f'{yt.title}.mkv'))
 if os.path.exists(os.path.join(output_dir, temp_audio)):
     os.remove(os.path.join(output_dir, temp_audio))
 if os.path.exists(os.path.join(output_dir, temp_video)):
@@ -274,8 +275,8 @@ PrintOK(f'Step 1/3. Done, ETA= {time.time() - t:.8f}s')
 # endregion
 
 PrintInfo(
-    f'Step 2/3. Downloading {select_item["resv"]} video file, size = {select_item["size"]} MB ...')
-video = yt.streams.filter(res=select_item["resv"]).first()
+    f'Step 2/3. Downloading {select_item["resv"]} ({short_codec(chosen_raw)}) video file, size = {chosen_size} MB ...')
+video = yt.streams.filter(res=select_item["resv"], video_codec=chosen_raw).first()
 
 t = time.time()
 video.download(output_path=output_dir, filename=temp_video, max_retries=3)
@@ -314,7 +315,8 @@ PrintInfo('Step 3/3. Mergeing ...')
 cmd = (' ').join(['ffmpeg',
                   '-i', os.path.join(output_dir, temp_video),
                   '-i', os.path.join(output_dir, temp_audio),
-                  '-r', fps,
+                  '-c:v', 'copy',
+                  '-c:a', 'copy',
                   '-y',
                   os.path.join(output_dir, merge_file)
                   ])
@@ -328,11 +330,23 @@ p = subprocess.Popen(cmd.split(),
 p.wait()
 
 os.rename(os.path.join(output_dir, merge_file),
-          os.path.join(output_dir, f'{yt.title}.mp4'))
+          os.path.join(output_dir, f'{yt.title}.mkv'))
 
 if os.path.exists(os.path.join(output_dir, temp_audio)):
     os.remove(os.path.join(output_dir, temp_audio))
 if os.path.exists(os.path.join(output_dir, temp_video)):
     os.remove(os.path.join(output_dir, temp_video))
+
+PrintOK('Step 3/3. Done')
+
+if selected_caption:
+    subtitle_path = os.path.join(output_dir, f'{yt.title}.srt')
+    try:
+        srt_content = selected_caption.generate_srt_captions()
+        with open(subtitle_path, 'w', encoding='utf-8') as f:
+            f.write(srt_content)
+        PrintOK(f'Subtitles saved: {subtitle_path}')
+    except Exception:
+        PrintWarning('Failed to save subtitles')
 
 PrintOK('All Done !!!')
