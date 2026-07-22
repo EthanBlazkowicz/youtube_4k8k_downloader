@@ -225,13 +225,14 @@ os.makedirs(output_dir, exist_ok=True)
 timestamp = datetime.datetime.now().timestamp()
 temp_audio = f'temp_{timestamp}.mp3'
 temp_video = f'temp_{timestamp}.mp4'
-merge_file = f'_merge_{timestamp}.mkv'
+output_ext = '.mp4' if chosen_raw and chosen_raw.startswith('avc1') else '.mkv'
+merge_file = f'_merge_{timestamp}{output_ext}'
 
 opener = "open" if sys.platform == "darwin" else "xdg-open" if sys.platform == 'linux' else 'start'
 # subprocess.call([opener, output_dir])
 
-if os.path.exists(os.path.join(output_dir, f'{yt.title}.mkv')):
-    os.remove(os.path.join(output_dir, f'{yt.title}.mkv'))
+if os.path.exists(os.path.join(output_dir, f'{yt.title}{output_ext}')):
+    os.remove(os.path.join(output_dir, f'{yt.title}{output_ext}'))
 if os.path.exists(os.path.join(output_dir, temp_audio)):
     os.remove(os.path.join(output_dir, temp_audio))
 if os.path.exists(os.path.join(output_dir, temp_video)):
@@ -330,7 +331,7 @@ p = subprocess.Popen(cmd.split(),
 p.wait()
 
 os.rename(os.path.join(output_dir, merge_file),
-          os.path.join(output_dir, f'{yt.title}.mkv'))
+          os.path.join(output_dir, f'{yt.title}{output_ext}'))
 
 if os.path.exists(os.path.join(output_dir, temp_audio)):
     os.remove(os.path.join(output_dir, temp_audio))
