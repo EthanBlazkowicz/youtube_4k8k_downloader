@@ -10,6 +10,7 @@ import time
 import subprocess
 import ffmpeg
 import datetime
+import re
 
 console = Console()
 
@@ -308,6 +309,37 @@ if not output_dir:
 output_dir = os.path.expanduser(output_dir)
 os.makedirs(output_dir, exist_ok=True)
 
+
+def sanitize_filename(title):
+    # 1. Replace colons with dashes
+    title = title.replace(":", " - ")
+
+    # 2. Remove Windows & macOS strictly forbidden characters
+    title = re.sub(r'[\\/*?"<>|]', "", title)
+
+    # 3. Remove ASCII control characters (0-31) and Delete (127)
+    title = re.sub(r"[\x00-\x1f\x7f]", "", title)
+
+    # 4. Replace multiple spaces with a single space
+    title = re.sub(r"\s+", " ", title)
+
+    # 5. Strip leading/trailing spaces and dots (Prevents Windows silent stripping)
+    title = title.strip(". ")
+
+    # 6. Handle Windows reserved names
+    reserved_names = (
+        {"CON", "PRN", "AUX", "NUL"}
+        | {f"COM{i}" for i in range(1, 10)}
+        | {f"LPT{i}" for i in range(1, 10)}
+    )
+    if not title or title.upper() in reserved_names:
+        title = "YouTube_Video"
+
+    return title
+
+
+safe_title = sanitize_filename(yt.title)
+
 timestamp = datetime.datetime.now().timestamp()
 temp_audio = f"temp_{timestamp}.mp3"
 temp_video = f"temp_{timestamp}.mp4"
@@ -321,8 +353,8 @@ opener = (
 )
 # subprocess.call([opener, output_dir])
 
-if os.path.exists(os.path.join(output_dir, f"{yt.title}{output_ext}")):
-    os.remove(os.path.join(output_dir, f"{yt.title}{output_ext}"))
+if os.path.exists(os.path.join(output_dir, f"{safe_title}{output_ext}")):
+    os.remove(os.path.join(output_dir, f"{safe_title}{output_ext}"))
 if os.path.exists(os.path.join(output_dir, temp_audio)):
     os.remove(os.path.join(output_dir, temp_audio))
 if os.path.exists(os.path.join(output_dir, temp_video)):
@@ -436,7 +468,7 @@ p.wait()
 
 os.rename(
     os.path.join(output_dir, merge_file),
-    os.path.join(output_dir, f"{yt.title}{output_ext}"),
+    os.path.join(output_dir, f"{safe_title}{output_ext}"),
 )
 
 if os.path.exists(os.path.join(output_dir, temp_audio)):
@@ -447,7 +479,7 @@ if os.path.exists(os.path.join(output_dir, temp_video)):
 PrintOK("Step 3/3. Done")
 
 if selected_caption:
-    subtitle_path = os.path.join(output_dir, f"{yt.title}.srt")
+    subtitle_path = os.path.join(output_dir, f"{safe_title}.srt")
     try:
         srt_content = selected_caption.generate_srt_captions()
         with open(subtitle_path, "w", encoding="utf-8") as f:
